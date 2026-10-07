@@ -1,0 +1,454 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ibutamoren — client-side anime upscaler</title>
+<meta name="description" content="A client-side anime upscaler: the compound whose one job is making things bigger. Nothing is uploaded.">
+<meta name="theme-color" content="#0d0a10">
+<meta property="og:title" content="Ibutamoren — client-side anime upscaler">
+<meta property="og:description" content="A client-side anime upscaler: the compound whose one job is making things bigger. Nothing is uploaded.">
+<meta property="og:url" content="https://kagerou.glass/ibutamoren/">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://kagerou.glass/share/ibutamoren.jpg">
+<meta property="og:image:type" content="image/jpeg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Ibutamoren — the compound whose one job is making things bigger. — client-side anime upscaler — nothing is uploaded">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://kagerou.glass/share/ibutamoren.jpg">
+<meta name="twitter:image:alt" content="Ibutamoren — the compound whose one job is making things bigger. — client-side anime upscaler — nothing is uploaded">
+<link rel="stylesheet" href="fonts.css">
+<style>
+  /* kagerou.glass issue system — dark-only, like coluracetam and cognosis.
+     Palette from the yamero tokens; ibutamoren's accent slot is the acid green. */
+  :root {
+    color-scheme: dark;
+    --void:  oklch(13.8% 0.021 300.1);
+    --base:  oklch(15.2% 0.014 307.5);
+    --panel: oklch(18.5% 0.02 314.3);
+    --raise: oklch(20.9% 0.03 313.1);
+    --ground: var(--base);
+    --panel-2: var(--raise);
+    --ink:   oklch(93.9% 0.016 335.1);
+    --ink-2: oklch(85.7% 0.03 334.5);
+    --ink-3: oklch(64.6% 0.038 330.5);
+    --ink-faint: oklch(58.5% 0.031 336); /* ≥4.5:1 on --base */
+    --pink:  oklch(77% 0.159 351.9);
+    --cyan:  oklch(85.7% 0.103 190.8);
+    --lilac: oklch(77.3% 0.113 301.5);
+    --accent: var(--lilac);
+    --accent-ink: oklch(13.8% 0.021 300.1);
+    --accent-soft: oklch(77.3% 0.113 301.5 / .14);
+    --crit: oklch(63.7% 0.204 3.6);
+    --spectrum: linear-gradient(100deg, var(--cyan), var(--lilac), var(--pink));
+    --hair: oklch(77% 0.159 351.9 / .16);
+    --hair-soft: oklch(77% 0.159 351.9 / .07);
+    --checker-a: oklch(18.3% 0.021 302.7);
+    --checker-b: oklch(16.2% 0.017 301.7);
+    --glass-bg: oklch(18.5% 0.02 314.3 / .62);
+    --glass-hair: oklch(77% 0.159 351.9 / .14);
+    --glass-inset: oklch(0% 0 0 / .32);
+    --seg-thumb: oklch(93.9% 0.016 335.1 / .13);
+    /* slider chrome sits on imagery, fixed regardless of surface */
+    --overlay-line: oklch(100% 0 0);
+    --overlay-pill-bg: oklch(13.8% 0.021 300.1 / .78);
+    --overlay-pill-ink: oklch(93.9% 0.016 335.1);
+    --serif: 'Fraunces', ui-serif, Georgia, serif;
+    --jp: 'Zen Kaku Gothic New', 'Noto Sans JP', sans-serif;
+    --font-ui: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --font-data: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+    --ease: cubic-bezier(0.22, 1, 0.36, 1);
+    --shadow-card: 0 1px 2px oklch(0% 0 0 / .45), 0 22px 56px oklch(0% 0 0 / .55);
+    --shadow-glass: 0 1px 2px oklch(0% 0 0 / .4), 0 12px 36px oklch(0% 0 0 / .5);
+  }
+
+  :root {
+    /* the two control sizes — every button, chip, segment, and field uses one of these.
+       Type is JetBrains Mono uppercase, so sizes sit smaller than a sans would. */
+    --ctl-h-lg: 40px;
+    --ctl-fs-lg: 12.5px;
+    --ctl-px-lg: 22px;
+    --ctl-h-sm: 30px;
+    --ctl-fs-sm: 11px;
+    --ctl-px-sm: 14px;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--base);
+    color: var(--ink);
+    font-family: var(--font-ui);
+    min-height: 100vh;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    padding: 0 0 64px;
+  }
+  /* the liminal void: faint pink/cyan glow for the glass to sample */
+  body::before {
+    content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+    background:
+      radial-gradient(44% 36% at 14% 8%, oklch(77% 0.159 351.9 / .07), transparent 70%),
+      radial-gradient(48% 42% at 88% 80%, oklch(85.7% 0.103 190.8 / .06), transparent 70%),
+      radial-gradient(34% 28% at 68% 16%, oklch(77.3% 0.113 301.5 / .05), transparent 70%);
+  }
+  /* paper grain on the ink, as on the sibling landings */
+  body::after {
+    content: ""; position: fixed; inset: 0; z-index: 90; pointer-events: none;
+    background-image: radial-gradient(oklch(94.9% 0.019 80.1 / .018) 1px, transparent 1px);
+    background-size: 3px 3px;
+    mix-blend-mode: screen;
+    opacity: .6;
+  }
+  .shell { max-width: 980px; margin: 0 auto; padding: 0 max(20px, 3vw); }
+
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .glass {
+    background: var(--glass-bg);
+    -webkit-backdrop-filter: blur(22px) saturate(1.7);
+    backdrop-filter: blur(22px) saturate(1.7);
+    border: 1px solid var(--glass-hair);
+    box-shadow: var(--shadow-glass);
+  }
+  @media (prefers-reduced-transparency: reduce) {
+    .glass { background: var(--panel); -webkit-backdrop-filter: none; backdrop-filter: none; border-color: var(--hair); }
+  }
+  @media (prefers-contrast: more) {
+    :root {
+      --hair: oklch(77% 0.159 351.9 / .5); --glass-hair: oklch(77% 0.159 351.9 / .45);
+      --ink-3: oklch(74.3% 0.03 333);
+    }
+  }
+
+  ::selection { background: var(--accent); color: var(--void); }
+  a { color: var(--pink); text-underline-offset: .14em; }
+  a:hover { color: var(--cyan); }
+
+  /* ---- masthead: the shared issue-system chrome ---- */
+  .masthead {
+    position: sticky; top: 0; z-index: 50;
+    display: grid; grid-template-columns: auto 1fr auto;
+    gap: 20px; align-items: center;
+    padding: 14px max(20px, 3vw);
+    background: oklch(15.2% 0.014 307.5 / .78);
+    backdrop-filter: blur(14px) saturate(140%);
+    -webkit-backdrop-filter: blur(14px) saturate(140%);
+    border-bottom: 1px solid var(--hair-soft);
+    font-family: var(--font-data); font-size: 11px;
+    letter-spacing: .16em; text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  .masthead-mark {
+    font-family: var(--jp); font-size: 18px; letter-spacing: .1em;
+    color: var(--ink); text-transform: none; font-weight: 700; text-decoration: none;
+  }
+  .masthead-meta { display: flex; gap: 22px; justify-content: center; }
+  .masthead-meta span { white-space: nowrap; }
+  .masthead-meta .dot { color: var(--ink-faint); }
+  @media (max-width: 760px) { .masthead { grid-template-columns: auto auto; } .masthead-meta { display: none; } }
+
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px; height: var(--ctl-h-sm);
+    font-family: var(--font-data); font-size: 11px; letter-spacing: .16em;
+    text-transform: uppercase; color: var(--ink-2);
+    border-radius: 999px; padding: 0 var(--ctl-px-sm); border: 1px solid var(--glass-hair);
+  }
+  .chip .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ink-3); }
+  .chip.on .dot { background: var(--accent); }
+  .chip.bad .dot { background: var(--crit); }
+
+  /* ---- cover ---- */
+  .cover { text-align: center; padding: clamp(2.2rem, 6vw, 4rem) 0 1.8rem; }
+  .cover-eyebrow {
+    font-family: var(--font-data); font-size: 12px; letter-spacing: .28em;
+    text-transform: uppercase; color: var(--accent); margin-bottom: .9rem;
+  }
+  .cover h1 {
+    font-family: var(--serif); font-weight: 400; font-size: clamp(34px, 6vw, 52px);
+    letter-spacing: -.01em; line-height: 1.05; margin: 0 0 .6rem;
+    background: var(--spectrum);
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent; color: transparent;
+  }
+  .cover p {
+    font-family: var(--serif); font-style: italic; font-weight: 400;
+    color: var(--ink-2); font-size: 17px; margin: 0;
+  }
+
+  /* ---- the one card: image is the hero (content layer, solid) ---- */
+  .canvas-card {
+    background: var(--panel);
+    border: 1px solid var(--hair);
+    border-radius: 22px;
+    box-shadow: var(--shadow-card);
+    overflow: hidden;
+  }
+
+  .stage {
+    position: relative; min-height: 240px;
+    background: repeating-conic-gradient(var(--checker-a) 0% 25%, var(--checker-b) 0% 50%) 0 0 / 20px 20px;
+    touch-action: none; user-select: none; -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* empty state */
+  .stage-empty {
+    position: absolute; inset: 0; display: grid; place-content: center; gap: 6px;
+    text-align: center; padding: 24px; cursor: pointer; background: var(--panel);
+  }
+  .stage-empty .art {
+    width: 56px; height: 56px; margin: 0 auto 6px; border-radius: 16px;
+    border: 1.5px dashed var(--ink-3); display: grid; place-items: center;
+    color: var(--ink-3); font-size: 24px;
+  }
+  .stage-empty .big { font-family: var(--serif); font-size: 18px; font-weight: 500; }
+  .stage-empty .hint { font-size: 12.5px; color: var(--ink-3); white-space: nowrap; }
+  .stage-empty .hint.formats { font-family: var(--font-data); font-size: 10.5px; margin-top: 2px; }
+  .stage.armed .stage-empty { background: var(--panel-2); }
+  .stage.armed { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 0; }
+
+  .linklike {
+    background: none; border: none; padding: 0; font: inherit;
+    color: var(--accent); cursor: pointer;
+  }
+  .linklike:hover { text-decoration: underline; }
+
+  /* preview + compare share the canvas area */
+  .stage canvas { display: block; width: 100%; height: auto; image-rendering: pixelated; }
+  #previewCanvas { image-rendering: auto; max-height: 460px; object-fit: contain; margin: 0 auto; }
+  .stage .after { position: absolute; inset: 0; }
+  .divider {
+    position: absolute; top: 0; bottom: 0; width: 2px; background: var(--overlay-line);
+    cursor: ew-resize; box-shadow: 0 0 5px oklch(0% 0 0 / .4);
+  }
+  .divider::after {
+    content: ""; position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%); width: 12px; height: 44px; border-radius: 7px;
+    background: var(--overlay-line); box-shadow: 0 1px 4px oklch(0% 0 0 / .35);
+  }
+  .taglabel {
+    position: absolute; top: 10px; font-family: var(--font-data); font-size: 10px;
+    letter-spacing: .8px; text-transform: uppercase;
+    background: var(--overlay-pill-bg); color: var(--overlay-pill-ink);
+    padding: 3px 9px; border-radius: 999px; pointer-events: none;
+  }
+  .taglabel.l { left: 10px; } .taglabel.r { right: 10px; }
+  .meta-pill {
+    position: absolute; bottom: 10px; left: 10px; font-family: var(--font-data);
+    font-size: 10.5px; background: var(--overlay-pill-bg); color: var(--overlay-pill-ink);
+    padding: 3px 9px; border-radius: 999px; pointer-events: none;
+  }
+
+  /* ---- control bar: the functional layer, glass ---- */
+  .controlbar {
+    display: flex; flex-direction: column; gap: 10px;
+    padding: 12px 14px; border-radius: 0 0 21px 21px;
+    border-top: 1px solid var(--hair);
+  }
+  .bar-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .bar-row .grow { flex: 1; }
+  .field-wrap {
+    display: inline-flex; align-items: center; gap: 5px; height: var(--ctl-h-sm);
+    background: var(--glass-inset); border-radius: 999px; padding: 0 var(--ctl-px-sm);
+    font-family: var(--font-data); font-size: 12px; color: var(--ink-2);
+  }
+  .field-wrap input {
+    width: 58px; border: none; background: none; font: inherit; color: var(--ink);
+    font-weight: 500; text-align: right; padding: 3px 0; -moz-appearance: textfield;
+  }
+  .field-wrap input::-webkit-outer-spin-button,
+  .field-wrap input::-webkit-inner-spin-button { -webkit-appearance: none; }
+  .field-wrap input:focus { outline: none; }
+  .field-wrap:focus-within { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .target-hint {
+    font-family: var(--font-data); font-size: 11px; color: var(--ink-3);
+    flex: 1; min-width: 90px; text-align: right; padding: 0 4px;
+  }
+
+  .segmented {
+    display: inline-flex; padding: 3px; border-radius: 999px;
+    background: var(--glass-inset); gap: 2px;
+  }
+  .segmented [role="radio"] {
+    border: none; background: none; font-family: var(--font-data);
+    font-size: var(--ctl-fs-sm); font-weight: 500;
+    letter-spacing: .08em; text-transform: uppercase;
+    color: var(--ink-2); padding: 0 var(--ctl-px-sm); border-radius: 999px; cursor: pointer;
+    height: var(--ctl-h-sm);
+  }
+  .segmented [role="radio"][aria-checked="true"] {
+    background: var(--seg-thumb); color: var(--ink);
+    box-shadow: 0 1px 3px oklch(0% 0 0 / .18);
+  }
+  .model-note {
+    font-family: var(--font-data); font-size: 10.5px; letter-spacing: .04em;
+    color: var(--ink-3); flex: 1; min-width: 150px;
+    padding: 0 4px; text-align: right; line-height: 1.7;
+  }
+
+  .btn {
+    font-family: var(--font-data); font-size: var(--ctl-fs-lg); font-weight: 500;
+    letter-spacing: .1em; text-transform: uppercase;
+    border-radius: 999px; padding: 0 var(--ctl-px-lg); height: var(--ctl-h-lg);
+    cursor: pointer; border: 1px solid transparent;
+    display: inline-flex; align-items: center; gap: 8px;
+    transition: background 200ms var(--ease), color 200ms var(--ease);
+  }
+  .btn.primary { background: var(--accent); color: var(--accent-ink); box-shadow: 0 0 24px oklch(77.3% 0.113 301.5 / .25); }
+  .btn.primary:hover { filter: brightness(1.07); }
+  .btn.primary:active { filter: brightness(.93); }
+  .btn.ghost { border-color: var(--ink-2); color: var(--ink); background: none; }
+  .btn.ghost:hover { background: var(--ink); color: var(--void); }
+
+  .spinner {
+    width: 14px; height: 14px; border-radius: 50%;
+    border: 2px solid oklch(13.8% 0.021 300.1 / .25); border-top-color: var(--accent-ink);
+    animation: spin .7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(1turn); } }
+
+  /* ---- metrics: glass panel, appears with a run ---- */
+  .metrics {
+    margin-top: 14px; border-radius: 18px; padding: 14px 16px;
+    display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+  }
+  .ring { position: relative; width: 52px; height: 52px; flex: none; }
+  .ring svg { width: 52px; height: 52px; transform: rotate(-90deg); }
+  .ring .track { stroke: var(--glass-inset); }
+  .ring .fill { stroke: var(--accent); transition: stroke-dashoffset .15s linear; }
+  .ring .pct {
+    position: absolute; inset: 0; display: grid; place-items: center;
+    font-family: var(--font-data); font-size: 11px; color: var(--ink);
+  }
+  .stat { min-width: 74px; }
+  .stat .v { font-family: var(--font-data); font-size: 17px; font-weight: 500; color: var(--ink); }
+  .stat .v small { font-size: 11px; font-weight: 400; color: var(--ink-2); }
+  .stat .k { font-size: 11px; color: var(--ink-3); }
+  .spark { display: flex; align-items: flex-end; gap: 2px; height: 30px; flex: 1; min-width: 90px; }
+  .spark i { flex: 1; max-width: 6px; min-height: 2px; border-radius: 2px; background: var(--accent); }
+  .export-row {
+    flex-basis: 100%; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+  .status-line.err { font-size: 12.5px; color: var(--crit); }
+
+  footer {
+    margin: 30px auto 0; max-width: 620px; text-align: center;
+    font-family: var(--font-data); font-size: 9.5px;
+    letter-spacing: .04em; color: var(--ink-faint); line-height: 2;
+  }
+  footer a { color: var(--ink-3); }
+  footer a:hover { color: var(--cyan); }
+  .hidden { display: none !important; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation-duration: 1.4s !important; }
+  }
+</style>
+</head>
+<body>
+<header class="masthead">
+  <a class="masthead-mark" href="https://kagerou.glass/" target="_blank" rel="noopener">陽炎窓</a>
+  <div class="masthead-meta">
+    <span>ibutamoren</span><span class="dot">·</span>
+    <span>イブタモレン</span><span class="dot">·</span>
+    <span>℞ growth secretagogue</span>
+  </div>
+  <span class="chip" id="backendChip"><span class="dot"></span>detecting…</span>
+</header>
+
+<div class="shell">
+<main>
+
+  <section class="cover">
+    <div class="cover-eyebrow">client-side anime upscaler — nothing is uploaded</div>
+    <h1>Ibutamoren</h1>
+    <p>the compound whose one job is making things bigger.</p>
+  </section>
+
+  <section class="canvas-card" aria-label="Image workspace">
+    <div class="stage" id="stage">
+      <canvas id="beforeCanvas" class="hidden"></canvas>
+      <canvas id="previewCanvas" class="hidden"></canvas>
+      <div class="after hidden" id="afterClip"><canvas id="afterCanvas"></canvas></div>
+      <div class="divider hidden" id="divider" role="slider" tabindex="0"
+           aria-label="Comparison position" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50"></div>
+      <div class="taglabel l hidden" id="tagL">original</div>
+      <div class="taglabel r hidden" id="tagR">upscaled</div>
+      <div class="meta-pill hidden" id="metaPill"></div>
+      <div class="stage-empty" id="stageEmpty">
+        <div class="art" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V6M5 12l7-7 7 7"/></svg>
+        </div>
+        <div class="big">Drop an image here</div>
+        <div class="hint">
+          <button class="linklike" id="browseLink">browse</button>, paste,
+          or <button class="linklike" id="sampleLink">try a sample</button>
+        </div>
+        <div class="hint formats" id="formatList">PNG · JPEG · WebP</div>
+      </div>
+    </div>
+    <div class="controlbar glass">
+      <div class="bar-row">
+        <div class="segmented" role="radiogroup" aria-label="Upscaling model" id="segModel"></div>
+        <div class="model-note" id="modelNote"></div>
+        <button class="btn ghost hidden" id="replaceBtn">New Image</button>
+        <button class="btn primary" id="runBtn"></button>
+      </div>
+      <div class="bar-row">
+        <div class="segmented" role="radiogroup" aria-label="Sizing mode" id="segMode"></div>
+        <div class="segmented" role="radiogroup" aria-label="Target size" id="segValue"></div>
+        <label class="field-wrap hidden" id="customWrap">
+          <input id="customValue" type="number" inputmode="decimal" aria-label="Custom target">
+          <span id="customUnit">×</span>
+        </label>
+        <span class="target-hint" id="targetHint"></span>
+      </div>
+      <div class="status-line err hidden" id="status" aria-live="assertive"></div>
+    </div>
+  </section>
+  <input type="file" id="file" accept="image/*,.avif,.heic,.heif" class="hidden">
+
+  <section class="metrics glass hidden" id="metrics" aria-label="Performance">
+    <div class="ring" role="progressbar" aria-label="Upscaling progress"
+         aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="ringWrap">
+      <svg viewBox="0 0 52 52" aria-hidden="true">
+        <circle class="track" cx="26" cy="26" r="22" fill="none" stroke-width="5"/>
+        <circle class="fill" cx="26" cy="26" r="22" fill="none" stroke-width="5"
+                stroke-linecap="round" stroke-dasharray="138.23" stroke-dashoffset="138.23" id="ringFill"/>
+      </svg>
+      <div class="pct" id="ringPct">0%</div>
+    </div>
+    <div class="stat"><div class="v" id="statMpps">–</div><div class="k">MP/s output</div></div>
+    <div class="stat"><div class="v" id="statTime">–</div><div class="k">elapsed</div></div>
+    <div class="stat"><div class="v" id="statTiles">–</div><div class="k">tiles</div></div>
+    <div class="stat"><div class="v" id="statSize">–</div><div class="k">output</div></div>
+    <div class="spark" id="spark" aria-label="Per-tile processing time" role="img"></div>
+    <div class="export-row" id="exportRow">
+      <div class="segmented hidden" role="radiogroup" aria-label="Download format" id="segFormat"></div>
+      <div class="segmented hidden" role="radiogroup" aria-label="Export quality" id="segQuality"></div>
+      <button class="btn ghost hidden" id="saveBtn">Download</button>
+    </div>
+  </section>
+
+  </main>
+
+  <footer>
+    <a href="https://github.com/kageroumado/ibutamoren" target="_blank" rel="noopener">Source</a> (MIT) ·
+    Models: <a href="https://github.com/Sirosky/Upscale-Hub" target="_blank" rel="noopener">Ani4K v2</a> by Sirosky
+    (<a href="https://creativecommons.org/licenses/by-nc/4.0/" target="_blank" rel="noopener">CC BY-NC 4.0</a>) ·
+    <a href="https://github.com/Kim2091/Kim2091-Models" target="_blank" rel="noopener">AnimeSharp V2/V4</a> by Kim2091
+    (<a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="noopener">CC BY-NC-SA 4.0</a>).
+    Inference by <a href="https://onnxruntime.ai/" target="_blank" rel="noopener">ONNX Runtime Web</a> (WebGPU, WASM fallback) ·
+    AVIF encoder from <a href="https://github.com/jamsinclair/jSquash" target="_blank" rel="noopener">jSquash</a> (Apache-2.0) ·
+    Sample: Hatsune Miku, <a href="https://piapro.net/intl/en_for_creators.html" target="_blank" rel="noopener">CC BY-NC by piapro</a>,
+    via <a href="https://github.com/nagadomi/waifu2x" target="_blank" rel="noopener">waifu2x</a>.
+  </footer>
+
+</div>
+
+<script type="module" src="ibutamoren.js"></script>
+</body>
+</html>

@@ -1,0 +1,7 @@
+/* Self-hosted, subset to the glyphs this page uses (SIL OFL 1.1, see licenses/OFL-1.1.txt). */
+@font-face{font-family:'JetBrains Mono';font-style:normal;font-weight:400;font-display:swap;src:url(fonts/jetbrains-mono-400-normal.woff2) format('woff2')}
+@font-face{font-family:'JetBrains Mono';font-style:normal;font-weight:500;font-display:swap;src:url(fonts/jetbrains-mono-500-normal.woff2) format('woff2')}
+@font-face{font-family:'Fraunces';font-style:normal;font-weight:400;font-display:swap;src:url(fonts/fraunces-400-normal.woff2) format('woff2')}
+@font-face{font-family:'Fraunces';font-style:italic;font-weight:400;font-display:swap;src:url(fonts/fraunces-400-italic.woff2) format('woff2')}
+@font-face{font-family:'Fraunces';font-style:italic;font-weight:500;font-display:swap;src:url(fonts/fraunces-500-italic.woff2) format('woff2')}
+@font-face{font-family:'Zen Kaku Gothic New';font-style:normal;font-weight:700;font-display:swap;src:url(fonts/zen-kaku-gothic-new-700-normal.woff2) format('woff2')}
