@@ -1,8 +1,6 @@
 # Models
 
-Three 2× anime upscalers, exported to ONNX by their authors. They are **not**
-covered by this repository's MIT license: each keeps its own Creative Commons
-license, and both licenses forbid commercial use.
+Three 2× anime upscalers exported to ONNX, with output dimensions patched for browser inference. Each model retains its author’s Creative Commons terms below; all three restrict use to noncommercial purposes.
 
 | File | Model | Author | License |
 |---|---|---|---|
